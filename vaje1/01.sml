@@ -13,41 +13,43 @@ in
     partition (xs, [], [])
 end;
 
-(*
+
 fun quickSelect (k : int, xs : int list) : int option=
 (* ali pa fun quickSelect (k : int, xs : int list) : int option *)
 if null xs then NONE else (*ta else vrne to ka je dol*)
 let
     val a = hd xs
     val p = partition(a,tl xs)
-    val l = #1 p
+    val l = #1 p  (*prvi in drugi ga uzames*)
     val r = #2 p
     fun len(c,s)= 
-        if nal s then c 
-        else len(c+1,tl s)
+        if null s then c 
+        else len(c + 1, tl s)
+
     val len_l = len(0,l)
 in
-if len_l=k 
-        then SOME a (* tuki damo some in ne gor pred else ker drugace spodnnji dve data some some int*)
-        else
-            if len_l>k
-            then quickSelect(k,l)
-            else quickSelect(k-len_l-1,r)
+    if len_l=k then SOME a (* tuki damo some in ne gor pred else ker drugace spodnnji dve data some some int*)
+    else
+        if len_l>k
+        then quickSelect(k,l)
+        else quickSelect(k-len_l-1,r)
 end;
 
-*)
+
 
 (*  Vrne fakulteto števila n, n >= 0. *)
 fun factorial (n : int):int =
-if n=1
+if n=0
 then 1
 else n*factorial(n-1);
 
 (*  Vrne n-to potenco števila x, n >= 0. *)
 fun power (x : int, n : int)=
-if n=1
-then x
-else x*power(x,n-1);
+if n=0 then 1
+else
+    if n=1
+    then x
+    else x*power(x,n-1);
 
 (*  Vrne največjega skupnega delitelja pozitivnih števil a in b, a >= b. *)
 fun gcd (a : int, b : int)=
@@ -78,27 +80,36 @@ else
 fun nth (xs : int list, n : int) : int option=
 if null xs then NONE 
 else 
-    if null (tl xs) 
+    if n=0 
     then SOME (hd xs)
     else nth(tl xs,n-1); 
 
 (*  Vrne nov seznam, ki je tak kot vhodni, le da je na n-to mesto vrinjen element x. Prvo mesto v seznamu ima indeks 0. Indeks n je veljaven (0 <= n <= length xs). *)
 fun insert (xs : int list, n : int, x : int) : int list=
-if (n=0)
-then x::insert(tl xs,~1,x)
-else (hd xs)::insert(tl xs, n-1,x);
+if null xs then [x] else
+    if (n=0)
+    then x::xs
+    else (hd xs)::insert(tl xs, n-1,x);
 
 
 (*  Vrne nov seznam, ki je tak kot vhodni, le da so vse pojavitve elementa x odstranjene. *)
 fun delete (xs : int list, x : int) : int list=
-if (hd xs=x) 
-then delete(tl xs,x)
-else (hd xs)::delete(tl xs,x);
+if null xs then xs 
+else
+    if (hd xs=x) 
+    then delete(tl xs,x)
+    else (hd xs)::delete(tl xs,x);
 
 (*  Vrne obrnjen seznam. V pomoč si lahko spišete še funkcijo append, ki doda na konec seznama. *)
 fun reverse (xs : int list) : int list=
-
+let
+    fun append(zs,x)=
+        if null zs then x
+        else append(tl zs, hd zs :: x)
+in
+    append(xs,[])
+end;
 
 (*  Vrne true, če je podani seznam palindrom. Tudi prazen seznam je palindrom. *)
-fun palindrome (xs : int list) : bool
-
+fun palindrome (xs : int list) : bool=
+xs=reverse(xs);
