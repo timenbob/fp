@@ -1,4 +1,4 @@
-(*kvatropivsak
+kvatropivsak
 datatype barva = Kriz | Pik | Srce | Karo
 datatype stopnja = As | Kralj | Kraljica | Fant | Stevilka of int
 
@@ -25,7 +25,6 @@ fun vsotaKart ([] : karta list) = 0 | vsotaKart (k :: karte) = vrednostKarte k +
 fun isteBarve([] | [_]) =true
     | isteBarve ( ((_,b1)::(ks as ((_,b2)::_ ))): karta list) = 
     b1 = b2 andalso isteBarve ks;
-*)
 
 (*induktivni podatkovni tipi*)
 
