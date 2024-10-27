@@ -10,14 +10,14 @@ val _ = print "~~~~~~~~ add ~~~~~~~~\n";
 val test_type: number * number -> number = add;
 val test1 = add(Succ(Succ(Zero)), Pred(Zero)) = Pred(Succ(Succ(Zero)));
 val test2 = add(Zero, Zero) = Zero;
-val test3 = add(Pred(Pred(Zero)), Succ(Succ(Zero))) = Zero;
+val test3 = add(Pred(Pred(Zero)), Succ(Succ(Zero))) = Succ(Succ(Pred(Pred(Zero))));
 
-(* Test for comp 
+(* Test for comp *)
 val _ = print "~~~~~~~~ comp ~~~~~~~~\n";
 val test_type: number * number -> order = comp;
 val test1 = comp(Succ(Succ(Zero)), Succ(Zero)) = GREATER;
 val test2 = comp(Pred(Zero), Succ(Zero)) = LESS;
-val test3 = comp(Zero, Zero) = EQUAL;*)
+val test3 = comp(Zero, Zero) = EQUAL;
 
 (* Test for contains *)
 val _ = print "~~~~~~~~ contains ~~~~~~~~\n";

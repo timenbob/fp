@@ -47,14 +47,16 @@ fun comp (a : number, b : number) : order =
         val sa = simp a
         val sb = simp b
     in
-        if sa = Zero andalso sb = Zero then EQUAL
-        else if sa = Zero then LESS
-        else if sb = Zero then GREATER
-        else comp (Pred sa, Succ sb)
-
-        case sa,sb of 
-             sa = Zero andalso sb = Zero => EQUAL
-            |sa = Zero andalso 
+        case (sa, sb) of 
+             (Zero, Zero) => EQUAL
+           | (Zero, Succ _) => LESS
+           | (Zero, Pred _) => GREATER
+           | (Succ _, Zero) => GREATER
+           | (Pred _, Zero) => LESS
+           | (Succ x, Succ y) => comp(x, y)
+           | (Pred x, Pred y) => comp(x, y)
+           | (Succ _, Pred _) => GREATER
+           | (Pred _, Succ _) => LESS
     end;
 
 
