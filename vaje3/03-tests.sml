@@ -64,7 +64,7 @@ val _ = print "~~~~~~~~ rotate ~~~~~~~~\n";
 val test_type: 'a bstree * direction -> 'a bstree = rotate;
 val rotateTest1 = rotate (br (lf, 10, br (lf, 20, lf)), L) = br (lf, 20, br (lf, 10, lf));
 val rotateTest2 = rotate (br (br (lf, 10, lf), 20, lf), R) = br (br (lf, 10, lf), 20, lf);
-(*
+
 (* Test for rebalance *)
 val _ = print "~~~~~~~~ rebalance ~~~~~~~~\n";
 val test_type: 'a bstree -> 'a bstree = rebalance;
@@ -73,9 +73,9 @@ val rebalanceTest1 = rebalance (br (br (lf, 10, lf), 20, br (lf, 30, br (lf, 40,
 (* Test for avl *)
 val _ = print "~~~~~~~~ avl ~~~~~~~~\n";
 val test_type: ('a * 'a -> order) * 'a bstree * 'a -> 'a bstree = avl;
-val avlTest1 = avl (op <, lf, 10) = br (lf, 10, lf);
-val avlTest2 = avl (op <, br (lf, 20, lf), 10) = br (br (lf, 10, lf), 20, lf);
-val avlTest3 = avl (op <, br (lf, 10, lf), 20) = br (lf, 10, br (lf, 20, lf));
+val avlTest1 = avl (c, lf, 10) = br (lf, 10, lf);
+val avlTest2 = avl (c , br (lf, 20, lf), 10) = br (br (lf, 10, lf), 20, lf);
+val avlTest3 = avl (c, br (lf, 10, lf), 20) = br (lf, 10, br (lf, 20, lf));
 
 
-*)
+

@@ -45,7 +45,7 @@ fun fold(f, z, s)=
 datatype 'a bstree = br of 'a bstree * 'a * 'a bstree | lf;
 datatype direction = L | R;
 
-fun rotate(tree: 'a bstree, dir: direction): 'a bstree =
+fun rotate2(tree: 'a bstree, dir: direction): 'a bstree =
     case (tree, dir) of
         (lf, _) => lf  (* If the tree is empty, return empty *)
       | (br(left, root, right), L) =>
@@ -60,5 +60,50 @@ fun rotate(tree: 'a bstree, dir: direction): 'a bstree =
                 lf => br(lf, root, right)  (* Left is empty, can't rotate *)
               | br(lLeft, lRoot, lRight) => br(lLeft, lRoot, br(lRight, root, right))
             );
+
+fun rotate (br (l, x, br (rl, rx, rr)), L) = br (br (l, x, rl), rx, rr)
+  | rotate (br (br (ll, lx, lr), x, r), R) = br (ll, lx, br (lr, x, r))
+  | rotate (t, _) = t;  (* If rotation is not possible, return the tree as is *)
+
+fun height lf = 0
+  | height (br (l, _, r)) = 1 + Int.max (height l, height r);
+
+fun rebalance (br (l, x, r)) =
+  let
+    val lh = height l
+    val rh = height r
+  in
+    if lh > rh + 1 then
+      case l of
+          br (ll, lx, lr) =>
+            if height ll >= height lr then rotate (br (l, x, r), R)
+            else rotate (br (rotate (l, L), x, r), R)
+        | lf => br (l, x, r)  (* Not possible to have imbalance if left is lf *)
+    else if rh > lh + 1 then
+      case r of
+          br (rl, rx, rr) =>
+            if height rr >= height rl then rotate (br (l, x, r), L)
+            else rotate (br (l, x, rotate (r, R)), L)
+        | lf => br (l, x, r)  (* Not possible to have imbalance if right is lf *)
+    else br (l, x, r)  (* Tree is already balanced *)
+  end;
+
+datatype order = LESS | EQUAL | GREATER;
+
+fun c(a, b) =
+  if a < b then LESS
+  else if a > b then GREATER
+  else EQUAL;
+
+(* Now you can test the avl function with this compare function *)
+
+fun avl (c, lf, e) = 
+    br (lf, e, lf)
+  | avl (c, br (l, x, r), e) =
+      case c (e, x) of
+          LESS => rebalance (br (avl (c, l, e), x, r))
+        | GREATER => rebalance (br (l, x, avl (c, r, e)))
+        | EQUAL => br (l, x, r);  (* Element already in the tree, no insertion *)
+
 
 
