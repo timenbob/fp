@@ -18,7 +18,7 @@ fun zip (x: 'a list, y: 'b list): ('a * 'b) list =
 
 fun unzip (ab : ('a * 'b) list) : 'a list * 'b list =
     let
-        fun pomozna([], (accA, accB)) = (rev accA, rev accB) (*rev reverses order*)
+        fun pomozna([], (accA, accB)) = (rev accA, rev accB) (*rev obrne*)
           | pomozna((a, b)::rep, (accA, accB)) = pomozna(rep, (a::accA, b::accB))
     in
         pomozna(ab, ([], []))
@@ -47,23 +47,21 @@ datatype direction = L | R;
 
 fun rotate2(tree: 'a bstree, dir: direction): 'a bstree =
     case (tree, dir) of
-        (lf, _) => lf  (* If the tree is empty, return empty *)
+        (lf, _) => lf 
       | (br(left, root, right), L) =>
-            (* Perform a right rotation *)
             (case right of
-                lf => br(left, root, lf)  (* Right is empty, can't rotate *)
+                lf => br(left, root, lf)
               | br(rLeft, rRoot, rRight) => br(br(left, root, rLeft), rRoot, rRight)
             )
       | (br(left, root, right), R) =>
-            (* Perform a left rotation *)
             (case left of
-                lf => br(lf, root, right)  (* Left is empty, can't rotate *)
+                lf => br(lf, root, right)
               | br(lLeft, lRoot, lRight) => br(lLeft, lRoot, br(lRight, root, right))
             );
 
 fun rotate (br (l, x, br (rl, rx, rr)), L) = br (br (l, x, rl), rx, rr)
   | rotate (br (br (ll, lx, lr), x, r), R) = br (ll, lx, br (lr, x, r))
-  | rotate (t, _) = t;  (* If rotation is not possible, return the tree as is *)
+  | rotate (t, _) = t;  
 
 fun height lf = 0
   | height (br (l, _, r)) = 1 + Int.max (height l, height r);
@@ -78,14 +76,14 @@ fun rebalance (br (l, x, r)) =
           br (ll, lx, lr) =>
             if height ll >= height lr then rotate (br (l, x, r), R)
             else rotate (br (rotate (l, L), x, r), R)
-        | lf => br (l, x, r)  (* Not possible to have imbalance if left is lf *)
-    else if rh > lh + 1 then
+        | lf => br (l, x, r)  
+        else if rh > lh + 1 then
       case r of
           br (rl, rx, rr) =>
             if height rr >= height rl then rotate (br (l, x, r), L)
             else rotate (br (l, x, rotate (r, R)), L)
-        | lf => br (l, x, r)  (* Not possible to have imbalance if right is lf *)
-    else br (l, x, r)  (* Tree is already balanced *)
+        | lf => br (l, x, r)  
+        else br (l, x, r)  
   end;
 
 datatype order = LESS | EQUAL | GREATER;
@@ -95,7 +93,6 @@ fun c(a, b) =
   else if a > b then GREATER
   else EQUAL;
 
-(* Now you can test the avl function with this compare function *)
 
 fun avl (c, lf, e) = 
     br (lf, e, lf)
@@ -103,7 +100,5 @@ fun avl (c, lf, e) =
       case c (e, x) of
           LESS => rebalance (br (avl (c, l, e), x, r))
         | GREATER => rebalance (br (l, x, avl (c, r, e)))
-        | EQUAL => br (l, x, r);  (* Element already in the tree, no insertion *)
-
-
+        | EQUAL => br (l, x, r); 
 
