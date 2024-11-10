@@ -4,6 +4,8 @@ exception NotNaturalNumber of natural;
 datatype 'a bstree = br of 'a bstree * 'a * 'a bstree | lf;
 datatype direction = L | R;
 
+datatype order = LESS | EQUAL | GREATER;
+
 (*---------------------------------------------------*)
 
 fun zip (x: 'a list, y: 'b list): ('a * 'b) list =
@@ -22,7 +24,7 @@ fun unzip (ab : ('a * 'b) list) : 'a list * 'b list =
           | pomozna((a, b)::rep, (accA, accB)) = pomozna(rep, (a::accA, b::accB))
     in
         pomozna(ab, ([], []))
-    end
+    end;
 
 fun subtract (One : natural, _ : natural) = raise NotNaturalNumber One
   | subtract (Succ a, One) = a
@@ -42,8 +44,7 @@ fun fold(f, z, s)=
         []=>z 
     |glava::rep=>fold(f,f(z,glava),rep);
 
-datatype 'a bstree = br of 'a bstree * 'a * 'a bstree | lf;
-datatype direction = L | R;
+
 
 fun rotate2(tree: 'a bstree, dir: direction): 'a bstree =
     case (tree, dir) of
@@ -63,42 +64,79 @@ fun rotate (br (l, x, br (rl, rx, rr)), L) = br (br (l, x, rl), rx, rr)
   | rotate (br (br (ll, lx, lr), x, r), R) = br (ll, lx, br (lr, x, r))
   | rotate (t, _) = t;  
 
-fun height lf = 0
-  | height (br (l, _, r)) = 1 + Int.max (height l, height r);
 
-fun rebalance (br (l, x, r)) =
-  let
-    val lh = height l
-    val rh = height r
-  in
-    if lh > rh + 1 then
-      case l of
-          br (ll, lx, lr) =>
-            if height ll >= height lr then rotate (br (l, x, r), R)
-            else rotate (br (rotate (l, L), x, r), R)
-        | lf => br (l, x, r)  
-        else if rh > lh + 1 then
-      case r of
-          br (rl, rx, rr) =>
-            if height rr >= height rl then rotate (br (l, x, r), L)
-            else rotate (br (l, x, rotate (r, R)), L)
-        | lf => br (l, x, r)  
-        else br (l, x, r)  
-  end;
+fun height (tree ) = 
+    case tree of
+        lf => 1
+        | br (l,_,r) => 
+            let 
+                val left = height(l)
+                val right = height(r)
+            in 
+                if left >= right 
+                then left + 1 
+                else right + 1
+            end;
 
-datatype order = LESS | EQUAL | GREATER;
+fun rebalance(drevo: 'a bstree) : 'a bstree = 
+    case drevo of
+        lf => lf
+        | br(left, value, right) =>
+            let
+                val leftHeight = height(left)
+                val rightHeight = height(right)
+                val balanceFactor = leftHeight - rightHeight
+            in 
+                if balanceFactor > 1 (*right rotation*)
+                then 
+                    (case left of 
+                        lf => drevo
+                        | br(lLeft, lValue, lRight) => if height(lLeft) >= height(lRight) 
+                                                       then rotate(drevo, R)
+                                                       else 
+                                                            let
+                                                                val leftLeft = rotate(left,L)
+                                                                val combined = br(leftLeft,value,right)
+                                                            in
+                                                                rotate(combined, R)
+                                                            end)
+                                                            
+                else if balanceFactor < (~1) 
+                then 
+                    (case right of 
+                        lf => drevo
+                        | br(rLeft, rValue, rRight) => if height(rRight) >= height(rLeft)
+                                                       then rotate(drevo, L)
+                                                       else 
+                                                            let
+                                                                val rightRight = rotate(right,R)
+                                                                val combined = br(left, value, rightRight)
+                                                            in
+                                                                rotate(combined, L)
+                                                            end)
+                else drevo
+                (* else br(left, value, right) *)
+            end;
 
-fun c(a, b) =
-  if a < b then LESS
-  else if a > b then GREATER
-  else EQUAL;
 
 
-fun avl (c, lf, e) = 
-    br (lf, e, lf)
-  | avl (c, br (l, x, r), e) =
-      case c (e, x) of
-          LESS => rebalance (br (avl (c, l, e), x, r))
-        | GREATER => rebalance (br (l, x, avl (c, r, e)))
-        | EQUAL => br (l, x, r); 
-
+fun avl(c: 'a * 'a -> order, drevo: 'a bstree, e: 'a) : 'a bstree = 
+    case drevo of 
+        lf => br(lf, e, lf)  
+      | br(left, value, right) => 
+            case c(e, value) of
+                EQUAL => drevo  
+              | LESS => 
+                    let
+                        val newLeft = avl(c, left, e)
+                        val newTree = br(newLeft, value, right)
+                    in 
+                        rebalance(newTree) 
+                    end
+              | GREATER => 
+                    let
+                        val newRight = avl(c, right, e)
+                        val newTree = br(left, value, newRight)
+                    in 
+                        rebalance(newTree)
+                    end;

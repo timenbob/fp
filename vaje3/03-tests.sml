@@ -78,4 +78,3 @@ val avlTest2 = avl (c , br (lf, 20, lf), 10) = br (br (lf, 10, lf), 20, lf);
 val avlTest3 = avl (c, br (lf, 10, lf), 20) = br (lf, 10, br (lf, 20, lf));
 
 
-

@@ -42,7 +42,7 @@ fun getVars a =
         (* Pomožna funkcija, ki rekurzivno prehodi izraz in zbere imena spremenljivk *)
         fun funP (Var x) = [x]
           | funP (Not e) = funP e
-          | funP (Or es) = List.concat (List.map funP es)
+          | funP (Or es) = List.concat  (List.map funP es)
           | funP (And es) = List.concat (List.map funP es)
           | funP (Imp (e1, e2)) = funP e1 @ funP e2
           | funP (Eq es) = List.concat (List.map funP es)
@@ -51,10 +51,13 @@ fun getVars a =
         isolate (funP a)  
     end;
 
-fun eval(spremenljivke,funkcija)=
+fun eval(spremenljivke, funkcija) =
     let
-    fun resnica x = list.exists(fn y=> y=x) spremenljivke (*preverim ali je x v spremenljivke *)
-    fun oceni True = true
+        (* Pomožna funkcija, ki preveri, če je spremenljivka v seznamu *)
+        fun resnica x = List.exists (fn y => y = x) spremenljivke
+        
+        (* Pomožna funkcija za oceno logičnih izrazov *)
+        fun oceni True = true
           | oceni False = false
           | oceni (Var x) = resnica x
           | oceni (Not x) = not (oceni x)
@@ -65,10 +68,70 @@ fun eval(spremenljivke,funkcija)=
               case es of
                   [] => true
                 | h :: t => List.all (fn x => oceni x = oceni h) t
-
-
     in
         oceni funkcija
     end;
 
-fun rmEmpty 
+
+fun rmEmpty ex=
+    case ex of
+     Or []=> False
+    | And []=> True
+    | Eq [] => True                 
+    | Or [x] => rmEmpty x              
+    | And [x] => rmEmpty x           
+    | Eq [x] => True                  
+    | Or xs => Or (List.map rmEmpty xs)
+    | And xs => And (List.map rmEmpty xs) (*z map naredimo da se rmEmpty da na vsak el notri*)
+    | Eq xs => Eq (List.map rmEmpty xs)
+    | Not x => Not (rmEmpty x)
+    | Imp (e1, e2) => Imp (rmEmpty e1, rmEmpty e2)
+    | _ => ex;    
+
+              
+
+fun pushNegations exs =
+    let
+        (* Function for pushing negations *)
+        fun no e = pushNegations (Not e)
+        
+        (* Apply rmEmpty to remove trivial expressions like True/False *)
+        val ex = rmEmpty exs
+
+        (* Define allPairs function *)
+        fun allPairs [] = []
+        | allPairs (x::xs) = List.map (fn y => (x, y)) xs @ allPairs xs;
+
+    in
+    case ex of
+        True => True
+      | False => False
+      | Var x => Var x
+      | Not True => False
+      | Not False => True
+      | Not (Not e) => no e
+      | Not (And e) => Or (List.map no e)
+      | Not (Or e) => And (List.map no e)
+      | Not (Imp (e1, e2)) => And [no e1, no e2]
+      | Not (Eq e) => 
+          let
+            val pairs = allPairs e
+            val negatedPairs = List.concat (List.map (fn (x, y) => [And [no x, no y], And [no x, no (Not y)]]) pairs)
+          in
+            Or negatedPairs
+          end
+      | And e => And (List.map no e)
+      | Or e => Or (List.map no e)
+      | Imp (e1, e2) => Or [no e1, no e2]
+      | Eq es => 
+          let
+            val pairs = allPairs es
+            val negatedPairs = List.concat (List.map (fn (x, y) => [Or [no x, no y], Or [no x, no (Not y)]]) pairs)
+          in
+            And negatedPairs
+          end
+      | _ => ex  (* Catch-all pattern for any case not explicitly matched *)
+    end
+
+fun rmConstants x=
+
