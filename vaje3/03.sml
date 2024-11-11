@@ -4,7 +4,7 @@ exception NotNaturalNumber of natural;
 datatype 'a bstree = br of 'a bstree * 'a * 'a bstree | lf;
 datatype direction = L | R;
 
-datatype order = LESS | EQUAL | GREATER;
+(*datatype order = LESS | EQUAL | GREATER;*)
 
 (*---------------------------------------------------*)
 
@@ -60,9 +60,23 @@ fun rotate2(tree: 'a bstree, dir: direction): 'a bstree =
               | br(lLeft, lRoot, lRight) => br(lLeft, lRoot, br(lRight, root, right))
             );
 
-fun rotate (br (l, x, br (rl, rx, rr)), L) = br (br (l, x, rl), rx, rr)
-  | rotate (br (br (ll, lx, lr), x, r), R) = br (ll, lx, br (lr, x, r))
-  | rotate (t, _) = t;  
+fun rotate3 (br (l, x, br (rl, rx, rr)), L) = br (br (l, x, rl), rx, rr)
+  | rotate3 (br (br (ll, lx, lr), x, r), R) = br (ll, lx, br (lr, x, r))
+  | rotate3 (t, _) = t;  
+
+fun rotate(drevo: 'a bstree, smer: direction) : 'a bstree =
+    case (drevo, smer) of 
+        (lf, _) => lf 
+      | (br(left, value, right), L) => 
+            (case right of 
+                lf => drevo  
+              | br(rL, rValue, rR) => 
+                    br(br(left, value, rL), rValue, rR)) 
+      | (br(left, value, right), R) =>
+            (case left of 
+                lf => drevo 
+              | br(lL, lValue, lR) => 
+                    br(lL, lValue, br(lR, value, right))); 
 
 
 fun height (tree ) = 
@@ -120,12 +134,12 @@ fun rebalance(drevo: 'a bstree) : 'a bstree =
 
 
 
-fun avl(c: 'a * 'a -> order, drevo: 'a bstree, e: 'a) : 'a bstree = 
+fun avl(c, drevo, e) = 
     case drevo of 
         lf => br(lf, e, lf)  
       | br(left, value, right) => 
             case c(e, value) of
-                EQUAL => drevo  
+                EQUAL => drevo  (*element ze notri*)
               | LESS => 
                     let
                         val newLeft = avl(c, left, e)

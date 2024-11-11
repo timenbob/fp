@@ -1,4 +1,4 @@
-(* Test for zip *)
+(* Test for zip 
 val _ = print "~~~~~~~~ zip ~~~~~~~~\n";
 val test_type: ('a list * 'b list) -> ('a * 'b) list = zip;
 val zipTest1 = zip ([1, 2, 3], ["a", "b", "c"]) = [(1, "a"), (2, "b"), (3, "c")];
@@ -70,11 +70,64 @@ val _ = print "~~~~~~~~ rebalance ~~~~~~~~\n";
 val test_type: 'a bstree -> 'a bstree = rebalance;
 val rebalanceTest1 = rebalance (br (br (lf, 10, lf), 20, br (lf, 30, br (lf, 40, lf)))) = br (br (lf, 10, lf), 20, br (lf, 30, br (lf, 40, lf)));
 
-(* Test for avl *)
-val _ = print "~~~~~~~~ avl ~~~~~~~~\n";
-val test_type: ('a * 'a -> order) * 'a bstree * 'a -> 'a bstree = avl;
-val avlTest1 = avl (c, lf, 10) = br (lf, 10, lf);
-val avlTest2 = avl (c , br (lf, 20, lf), 10) = br (br (lf, 10, lf), 20, lf);
-val avlTest3 = avl (c, br (lf, 10, lf), 20) = br (lf, 10, br (lf, 20, lf));
+*)
 
 
+(* izpis daljših izrazov v interpreterju *)
+val _ = Control.Print.printDepth := 100;
+val _ = Control.Print.printLength := 1000;
+val _ = Control.Print.stringDepth := 1000;
+
+(* izpis drevesa po nivojih *)
+fun showTree (toString : 'a -> string, t : 'a bstree) =
+let fun strign_of_avltree_level (lvl, t) = case t of  
+        lf => if lvl = 0 then "nil" else "   "
+    |   br (l, n, r) =>
+        let val make_space = String.map (fn _ => #" ")
+            val sn = toString n
+            val sl = strign_of_avltree_level (lvl, l)
+            val sr = strign_of_avltree_level (lvl, r)
+        in if height t = lvl
+            then make_space sl ^ sn ^ make_space sr
+            else sl ^ make_space sn ^ sr
+        end
+    fun print_levels lvl =
+        if lvl >= 0
+        then (print (Int.toString lvl ^ ": " ^ strign_of_avltree_level (lvl, t) ^ "\n");
+                    print_levels (lvl - 1))
+        else ()
+  in  print_levels (height t)
+end;
+
+(* primeri vstavljanja elementov v AVL drevo *)
+fun avlInt (t, i) = avl (Int.compare, t, i);
+fun showTreeInt t = showTree(Int.toString, t);
+
+val tr = lf : int bstree;
+val _ = showTreeInt tr;
+val tr = avlInt (tr, 1);
+val _ = showTreeInt tr;
+val tr = avlInt (tr, 2);
+val _ = showTreeInt tr;
+val tr = avlInt (tr, 3);
+val _ = showTreeInt tr;
+val tr = avlInt (tr, 4);
+val _ = showTreeInt tr;
+val tr = avlInt (tr, 5);
+val _ = showTreeInt tr;
+val tr = avlInt (tr, 6);
+val _ = showTreeInt tr;
+val tr = avlInt (tr, 7);
+val _ = showTreeInt tr;
+val tr = avlInt (tr, ~4);
+val _ = showTreeInt tr;
+val tr = avlInt (tr, ~3);
+val _ = showTreeInt tr;
+val tr = avlInt (tr, ~2);
+val _ = showTreeInt tr;
+val tr = avlInt (tr, ~1);
+val _ = showTreeInt tr;
+val tr = avlInt (tr, 0);
+val _ = showTreeInt tr;
+
+val from0to13 = fold (fn (z, x) => avl (Int.compare, z, x), lf, List.tabulate (14, fn i => i));
