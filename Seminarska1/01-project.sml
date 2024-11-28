@@ -76,26 +76,24 @@ fun remove x = List.filter (neq x);
 
 (* ==================== WARMUP ==================== *)
 
-fun isolate (a : ''a list) : ''a list =
-    if a=[] then [] 
-    else
-        let
-        val b = rev a
-        fun obrni [] = []
-            | obrni (x::xs) = 
-                if List.exists (fn y => y = x) xs then
-                    obrni xs  (* preskoči trenutni element, če je že v seznamu *)
-                else
-                    x :: obrni xs;  (* dodaj element v seznam, če ga še ni bilo *)
-        in
-        rev(obrni(b))
-        end;
+fun isolate l = 
+    let
+        fun pomozna([],_) = []
+            | pomozna(glava::rep, videni) = if List.exists (fn y => y = glava) videni
+                (*samo preskocimo element*)
+                then pomozna(rep, videni)
+                (*dodamo element v seznam*)
+                else glava::pomozna(rep, glava::videni)
+    in 
+        pomozna(l,[])
+    end;
+
 
 
 (* ==================== PART 1 ==================== *)
 
 
-fun getVars a =
+fun getVars (a) =
     let
         (* Pomožna funkcija, ki rekurzivno prehodi izraz in zbere imena spremenljivk *)
         fun funP (Var x) = [x]
@@ -109,15 +107,17 @@ fun getVars a =
         isolate (funP a)  
     end;
 
-fun eval(spremenljivke, funkcija) =
+fun eval (spremenljivke : 'a list, funkcija : 'a expression): bool =
     let
         (* Pomožna funkcija, ki preveri, če je spremenljivka v seznamu *)
-        fun resnica x = List.exists (fn y => y = x) spremenljivke
+        fun resnica (x : 'a expression) (spremenljivke : 'a expression list) =
+            List.exists (fn y => x=y) spremenljivke
+
         
         (* Pomožna funkcija za oceno logičnih izrazov *)
         fun oceni True = true
           | oceni False = false
-          | oceni (Var x) = resnica x
+          | oceni (Var x) = resnica (x,spremenljivke)
           | oceni (Not x) = not (oceni x)
           | oceni (Or xy) = List.exists (fn y => oceni y) xy
           | oceni (And xy) = List.all (fn y => oceni y) xy
@@ -129,6 +129,7 @@ fun eval(spremenljivke, funkcija) =
     in
         oceni funkcija
     end;
+
 
 
 fun rmEmpty ex=
@@ -153,10 +154,8 @@ fun pushNegations exs =
         (* Function for pushing negations *)
         fun no e = pushNegations (Not e)
         
-        (* Apply rmEmpty to remove trivial expressions like True/False *)
         val ex = rmEmpty exs
 
-        (* Define allPairs function *)
         fun allPairs [] = []
         | allPairs (x::xs) = List.map (fn y => (x, y)) xs @ allPairs xs;
 
@@ -188,77 +187,90 @@ fun pushNegations exs =
           in
             And negatedPairs
           end
-      | _ => ex  (* Catch-all pattern for any case not explicitly matched *)
+      | _ => ex  
     end
 
-(*dobil pomoc ker se neda resit vse z case*)
-fun rmConstants izraz = 
-    let 
+fun rmConstants izraz =
+    let
+        (* Najprej odstranimo prazne izraze *)
         val poenostavljen_izraz = rmEmpty izraz
-        fun simpl(And esez) = 
-                let 
-                    val poenostavljen = List.map simpl esez
-                    val noben_True = List.filter (fn x => x <> True) poenostavljen
-                in 
-                    (*A in 0 = 0*)
-                    (if List.exists (fn x => x = False) poenostavljen 
-                    then False
-                    else 
-                        (case noben_True of
-                            [] => True
-                            | [el] => el
-                            | _ => And noben_True))
-                end
-                        
-
-            | simpl(Or esez) = 
-                let 
-                    val poenostavljen = List.map simpl esez
-                    val noben_False = List.filter (fn x => x <> False) poenostavljen
-                in 
-                    (*A ali 1 = 1*)
-                    (if List.exists (fn x => x = True) poenostavljen 
-                    then True
-                    else 
-                        (case noben_False of
-                            [] => False
-                            | [el] => el
-                            | _ => Or noben_False))
-                end
-            | simpl(Imp (e1,e2)) =
-                let 
-                    val levi_del = simpl e1
-                    val desni_del = simpl e2
-                in
-                    (case (levi_del, desni_del) of
-                        (_, False) => Not levi_del
-                        | (_, True) => True
-                        | (False, _) => True
-                        | (True, _) => desni_del
-                        | _ => Imp (levi_del, desni_del))
-                end
-            | simpl(Eq esez) = 
-                let 
-                    val poenostavljen = List.map simpl esez
-                    val ima_True = List.exists (fn x => x = True) poenostavljen
-                    val ima_False = List.exists (fn x => x = False) poenostavljen
-                    val ni_True_ni_False = List.filter (fn x => x <> True andalso x <> False) poenostavljen
-                in 
-                    (case (ima_True, ima_False) of
-                        (true, true) => False (*izraz ima in 0 in 1*)
-                        | (true, false) => And ni_True_ni_False (*Eq[A,B,1,C] ~ A in B in C*)
-                        | (false, true) => And (List.map (fn x => Not x) ni_True_ni_False) (*Eq[A,B,0,C] ~ ¬A in ¬B in ¬C*)
-                        | _ => Eq ni_True_ni_False)
-                end
-            | simpl(Not izrazek) = 
-                (case simpl izrazek of
-                    True => False
-                    | False => True
-                    | poenostavljen_izrazek => Not poenostavljen_izrazek)
-            | simpl el = el
+        
+        (* Pomožna funkcija za poenostavitev izrazov *)
+        fun simpl (And esez) =
+            let
+                (* Poenostavimo vse elemente v konjunkciji *)
+                val poenostavljen = List.map simpl esez
+                (* Izločimo vse `True`, saj ti ne vplivajo na konjunkcijo *)
+                val noben_True = List.filter (fn x => x <> True) poenostavljen
+            in
+                (* Obdelava posebnih primerov za konjunkcijo *)
+                if List.exists (fn x => x = False) poenostavljen then
+                    False (* A ∧ 0 = 0 *)
+                else
+                    (case noben_True of
+                         [] => True (* Vsi elementi so bili `True`, zato je rezultat `True` *)
+                       | [el] => el (* Ostal je en sam element, vrnemo ga *)
+                       | _ => And noben_True) (* Ohranimo konjunkcijo preostalih elementov *)
+            end
+        | simpl (Or esez) =
+            let
+                (* Poenostavimo vse elemente v disjunkciji *)
+                val poenostavljen = List.map simpl esez
+                (* Izločimo vse `False`, saj ti ne vplivajo na disjunkcijo *)
+                val noben_False = List.filter (fn x => x <> False) poenostavljen
+            in
+                (* Obdelava posebnih primerov za disjunkcijo *)
+                if List.exists (fn x => x = True) poenostavljen then
+                    True (* A ∨ 1 = 1 *)
+                else
+                    (case noben_False of
+                         [] => False (* Vsi elementi so bili `False`, zato je rezultat `False` *)
+                       | [el] => el (* Ostal je en sam element, vrnemo ga *)
+                       | _ => Or noben_False) (* Ohranimo disjunkcijo preostalih elementov *)
+            end
+        | simpl (Imp (e1, e2)) =
+            let
+                (* Poenostavimo obe strani implikacije *)
+                val levi_del = simpl e1
+                val desni_del = simpl e2
+            in
+                (* Obdelava primerov za implikacijo *)
+                (case (levi_del, desni_del) of
+                     (_, False) => Not levi_del (* A ⇒ 0 = ¬A *)
+                   | (_, True) => True (* A ⇒ 1 = 1 *)
+                   | (False, _) => True (* 0 ⇒ B = 1 *)
+                   | (True, _) => desni_del (* 1 ⇒ B = B *)
+                   | _ => Imp (levi_del, desni_del)) (* Ostalo ohranimo *)
+            end
+        | simpl (Eq esez) =
+            let
+                (* Poenostavimo elemente ekvivalence *)
+                val poenostavljen = List.map simpl esez
+                (* Preverimo, če obstajajo `True` ali `False` *)
+                val ima_True = List.exists (fn x => x = True) poenostavljen
+                val ima_False = List.exists (fn x => x = False) poenostavljen
+                (* Izločimo konstante iz ekvivalence *)
+                val ni_True_ni_False = List.filter (fn x => x <> True andalso x <> False) poenostavljen
+            in
+                (* Obdelava primerov za ekvivalenco *)
+                (case (ima_True, ima_False) of
+                     (true, true) => False (* Eq[A, B, 1, 0] = 0 *)
+                   | (true, false) => And ni_True_ni_False (* Eq[A, B, 1, C] = A ∧ B ∧ C *)
+                   | (false, true) => And (List.map (fn x => Not x) ni_True_ni_False) (* Eq[A, B, 0, C] = ¬A ∧ ¬B ∧ ¬C *)
+                   | _ => Eq ni_True_ni_False) (* Ohranimo ekvivalenco preostalih elementov *)
+            end
+        | simpl (Not izrazek) =
+            (* Poenostavimo negirani izraz *)
+            (case simpl izrazek of
+                 True => False (* ¬True = False *)
+               | False => True (* ¬False = True *)
+               | poenostavljen_izrazek => Not poenostavljen_izrazek) (* Ohranimo negacijo *)
+        | simpl el = el (* Osnovni primer: vrnemo element nespremenjen *)
     in
+        (* Uporabimo funkcijo za poenostavitev *)
         simpl poenostavljen_izraz
     end;
+
 
 fun rmVars ex = 
     case ex of
@@ -303,15 +315,16 @@ fun rmVars ex =
         | Not e => Not (rmVars e) 
         | _ => ex  
 
-fun simplify(ex)=
+fun simplify(izraz) =
     let
-        fun iterativnaPoenostavitev trenutno prejšnje =
-            if trenutno = prejšnje then trenutno  
-            else iterativnaPoenostavitev 
-                    (odstraniSpremenljivke (potisniNegacije (odstraniKonstante trenutno))) trenutno
+        fun iterativnaPoenostavitev trenutno prejsnje =
+            if trenutno = prejsnje then trenutno
+            else iterativnaPoenostavitev
+                    (rmVars (pushNegations (rmConstants trenutno))) trenutno
     in
-        iterativnaPoenostavitev (odstraniSpremenljivke (potisniNegacije (odstraniKonstante izraz))) izraz
+        iterativnaPoenostavitev (rmVars (pushNegations (rmConstants izraz))) izraz
     end;
+
 
 
 fun prTestEq _ _ _ = raise NotImplemented;
