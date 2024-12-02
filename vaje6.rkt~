@@ -1,0 +1,11 @@
+#lang racket
+
+(define (power x n) ; Correct the define syntax
+  (if (= n 0)
+      1
+      (* x (power x (- n 1))))) ; Fix the recursive call syntax
+
+(displayln (power 2 3))  ; Expected: 8
+(displayln (power 5 0))  ; Expected: 1
+(displayln (power 3 2))  ; Expected: 9
+(displayln (power 7 1))  ; Expected: 7

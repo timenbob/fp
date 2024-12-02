@@ -134,12 +134,12 @@ fun pushNegations exs =
     end
 
 (*dobil pomoc ker se neda resit vse z case*)
-fun rmConstants izraz = 
+fun pomoconstants izraz = 
     let 
         val poenostavljen_izraz = rmEmpty izraz
-        fun simpl(And esez) = 
+        fun simpl(And el) = 
                 let 
-                    val poenostavljen = List.map simpl esez
+                    val poenostavljen = List.map simpl el
                     val noben_True = List.filter (fn x => x <> True) poenostavljen
                 in 
                     (*A in 0 = 0*)
@@ -153,9 +153,9 @@ fun rmConstants izraz =
                 end
                         
 
-            | simpl(Or esez) = 
+            | simpl(Or el) = 
                 let 
-                    val poenostavljen = List.map simpl esez
+                    val poenostavljen = List.map simpl el
                     val noben_False = List.filter (fn x => x <> False) poenostavljen
                 in 
                     (*A ali 1 = 1*)
@@ -179,9 +179,9 @@ fun rmConstants izraz =
                         | (True, _) => desni_del
                         | _ => Imp (levi_del, desni_del))
                 end
-            | simpl(Eq esez) = 
+            | simpl(Eq el) = 
                 let 
-                    val poenostavljen = List.map simpl esez
+                    val poenostavljen = List.map simpl el
                     val ima_True = List.exists (fn x => x = True) poenostavljen
                     val ima_False = List.exists (fn x => x = False) poenostavljen
                     val ni_True_ni_False = List.filter (fn x => x <> True andalso x <> False) poenostavljen
