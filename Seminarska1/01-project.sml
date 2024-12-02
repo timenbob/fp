@@ -166,16 +166,17 @@ fun pushNegations exs=
         pomoc ex
     end
 
-fun pomoconstants exp =
+fun rmConstants exp =
     let
         val ex = rmEmpty exp;
+
         fun neg True = False
-            |   neg False = True
-            |   neg e = Not e;
+        |   neg False = True
+        |   neg e = Not e;
 
 
-        fun pomoc exp = 
-            case (rmEmpty exp) of
+        fun pomoc ex = 
+            case (rmEmpty ex) of
                 Not e => neg (pomoc e)
               | Or l =>
                     let
@@ -270,7 +271,7 @@ fun rmVars ex =
 
 fun simplify izraz =
     let
-        fun poenostavljeno sez=rmVars( pushNegations( pomoconstants( sez))) 
+        fun poenostavljeno sez=rmVars( pushNegations( rmConstants( sez))) 
         fun poenostavi el=
             let 
                val pon_el=poenostavljeno el

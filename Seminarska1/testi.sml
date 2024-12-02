@@ -76,11 +76,11 @@ val test2 = pushNegations
     Or [False,Var 3,Or [Not True,And [Not (Var 1),True],And [True,Not (Var 2)]]]] handle NotImplemented => false;
 val _ = (all_tests := !all_tests @ [test1, test2]);
 
-val _ = print "---------- pomoconstants ----------\n";
-val _ : ''a expression -> ''a expression = pomoconstants;
-val test1 = pomoconstants (Eq [True, Var 1, Var 2]) = And [Var 1,Var 2] handle NotImplemented => false;
-val test2 = pomoconstants (Eq [Var 1, False, Var 2]) = And [Not (Var 1),Not (Var 2)] handle NotImplemented => false;
-val test3 = pomoconstants
+val _ = print "---------- rmConstants ----------\n";
+val _ : ''a expression -> ''a expression = rmConstants;
+val test1 = rmConstants (Eq [True, Var 1, Var 2]) = And [Var 1,Var 2] handle NotImplemented => false;
+val test2 = rmConstants (Eq [Var 1, False, Var 2]) = And [Not (Var 1),Not (Var 2)] handle NotImplemented => false;
+val test3 = rmConstants
     (Eq [Var 1, Eq [False, Var 3, And [And [], Or [Var 1, Not (Eq [Var 4, False, True])],
         Imp (True, Var 2)]]]) = Eq [Var 1,And [Not (Var 3),Not (Var 2)]] handle NotImplemented => false;
 val _ = (all_tests := !all_tests @ [test1, test2, test3]);

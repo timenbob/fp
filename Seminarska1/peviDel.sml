@@ -134,7 +134,7 @@ fun pushNegations exs =
     end
 
 (*dobil pomoc ker se neda resit vse z case*)
-fun pomoconstants izraz = 
+fun rmConstants izraz = 
     let 
         val poenostavljen_izraz = rmEmpty izraz
         fun simpl(And el) = 
