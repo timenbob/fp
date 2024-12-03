@@ -80,7 +80,7 @@ fun isolate l =
     let
         fun pomozna([],_) = []
             | pomozna(glava::rep, videni) = if List.exists (fn y => y = glava) videni
-                                           (*samo preskocimo element*)
+                                           (*ce je glava ze v videnih preskoci*)
                                            then pomozna(rep, videni)
                                            (*dodamo element v seznam*)
                                            else glava::pomozna(rep, glava::videni)
@@ -92,11 +92,11 @@ fun isolate l =
 fun getVars (a) =
     let
         (* Pomožna funkcija, ki rekurzivno prehodi izraz in zbere imena spremenljivk *)
-        fun funP (Var x) = [x]
-          | funP (Not e) = funP e
+        fun funP (Var x) = [x](*samo dodamo notri*)
+          | funP (Not e) = funP e(*poklicemo na izrazu*)
           | funP (Or es) = List.concat  (List.map funP es)
-          | funP (And es) = List.concat (List.map funP es)
-          | funP (Imp (e1, e2)) = funP e1 @ funP e2
+          | funP (And es) = List.concat (List.map funP es)(*map najprej na vsak el poklice fun [[r1], [r2], [r3]], nato concat zdruzi*)
+          | funP (Imp (e1, e2)) = funP e1 @ funP e2(*samo zdruzi*)
           | funP (Eq es) = List.concat (List.map funP es)
           | funP _ = []  
     in
@@ -111,10 +111,10 @@ fun eval spremenljivke funkcija=
             | fune(And el) = List.all fune el (*vsi morjo bit ok*)
             | fune(Eq el) = 
                 (case el of 
-                    [] => true
-                    | [el] => true
+                    [] => true(*po navodilih*)
+                    | [el] => true(*ce en el true*)
                     | glava::rep => let 
-                                        val eg = fune glava
+                                        val eg = fune glava(*ce se ujema z glavo je gud*)
                                     in
                                         List.all (fn el => eg = fune el) rep (*preverimo ali so vsi ostali elementi enaki kot prvi*)
                                     end)
@@ -129,39 +129,39 @@ fun eval spremenljivke funkcija=
 
 fun rmEmpty ex=
     case ex of
-     Or []=> False
-    | And []=> True
-    | Eq [] => True                 
-    | Or [x] => rmEmpty x              
-    | And [x] => rmEmpty x           
-    | Eq [x] => True                  
-    | Or xs => Or (List.map rmEmpty xs)
-    | And xs => And (List.map rmEmpty xs) (*z map naredimo da se rmEmpty da na vsak el notri*)
-    | Eq xs => Eq (List.map rmEmpty xs)
-    | Not x => Not (rmEmpty x)
-    | Imp (e1, e2) => Imp (rmEmpty e1, rmEmpty e2)
-    | _ => ex;    
+        Or []=> False
+        | And []=> True
+        | Eq [] => True(*te pogledu na net da majo smisu*)                 
+        | Or [x] => rmEmpty x              
+        | And [x] => rmEmpty x           
+        | Eq [x] => True  (*posamezni elemeti*)                
+        | Or xs => Or (List.map rmEmpty xs)
+        | And xs => And (List.map rmEmpty xs) (*z map naredimo da se rmEmpty da na vsak el notri*)
+        | Eq xs => Eq (List.map rmEmpty xs)
+        | Not x => Not (rmEmpty x)
+        | Imp (e1, e2) => Imp (rmEmpty e1, rmEmpty e2)(*implikacijo pustimo samo te notri postimamo ce so or and al eq*)
+        | _ => ex;    
 
               
 
 fun pushNegations exs=
     let
        
-        val ex = rmEmpty exs
+        val ex = rmEmpty exs(*navodila*)
         fun pomoc(Not(Not(el)))= pomoc el
             | pomoc(Not (And el)) = Or (List.map (fn x => pomoc(Not x)) el)
-            | pomoc(Not (Or el)) = And (List.map (fn x => pomoc(Not x)) el)
-            | pomoc(Not (Imp (e1,e2))) = And [pomoc e1, pomoc(Not e2)]
+            | pomoc(Not (Or el)) = And (List.map (fn x => pomoc(Not x)) el)(*obicen lmn*)
+            | pomoc(Not (Imp (e1,e2))) = And [pomoc e1, pomoc(Not e2)](*obicen lmn*)
 
             | pomoc(Not (Eq el)) = And [Or (List.map (fn e => pomoc (Not e)) el), Or (List.map pomoc el)]
-
+            (*una glupa ogabna formula*)
 
             | pomoc(And el) = And (List.map pomoc el)
             | pomoc(Or el) = Or (List.map pomoc el)
             | pomoc(Imp (e1,e2)) = Imp (pomoc e1, pomoc e2)
             | pomoc(Eq el) = Eq (List.map pomoc el)
-            | pomoc(Not el) = Not (pomoc el)
-            | pomoc (el)=el
+            | pomoc(Not el) = Not (pomoc el)(*samo da une not postimas*)
+            | pomoc (el)=el(*ko nic drugega naceloma sem nebi smelo nic prit*)
     in
         pomoc ex
     end
@@ -172,12 +172,12 @@ fun rmConstants exp =
 
         fun neg True = False
         |   neg False = True
-        |   neg e = Not e;
+        |   neg e = Not e;(*navodil*)
 
 
         fun pomoc ex = 
             case (rmEmpty ex) of
-                Not e => neg (pomoc e)
+                Not e => neg (pomoc e)(*samoo neg*)
               | Or l =>
                     let
                         val r = remove False (List.map pomoc l)
@@ -186,9 +186,9 @@ fun rmConstants exp =
                     end
               | And l =>
                     let
-                        val r = remove True (List.map pomoc l)
+                        val r = remove True (List.map pomoc l)(*truje damo vn ker nimajo veze*)
                     in
-                        if List.exists (eq False) r then False else And r
+                        if List.exists (eq False) r then False else And r(*ce je vsaj ena false bam stran*)
                     end
               | Imp (e1, e2) => 
                     let
@@ -198,43 +198,43 @@ fun rmConstants exp =
                             (e, False) => pomoc (Not e)
                           | (e, True) => True
                           | (False, _) => True
-                          | (True, e) => pomoc e
-                          | (el, er) => Imp (el, er)
+                          | (True, e) => pomoc e(*iz tabele*)
+                          | (el, er) => Imp (el, er)(*ostale moznosti*)
                     end
               | Eq l =>
                     let
                         val r = List.map pomoc l
-                        val (hasTrue, hasFalse) = (List.exists (eq True) r, List.exists (eq False) r)
+                        val (hasTrue, hasFalse) = (List.exists (eq True) r, List.exists (eq False) r)(*preverimo a mamo truje pa false*)
                     in
                         if hasTrue andalso hasFalse then
                             False
                         else if hasTrue then
-                            And (remove True r)
+                            And (remove True r)(*odstranmo vse truje*)
                         else if hasFalse then
-                            And (List.map neg (remove False r))
+                            And (List.map neg (remove False r))(*odstranmo vse folse in negiramo in zdruzimo z and*)
                         else
                             Eq r
                     end
               | e => e
     in
-        rmEmpty (pomoc ex)
+        rmEmpty (pomoc ex)(*ce smo spremenil kksne*)
     end;
 
 fun rmVars ex = 
     let
         val poenostavljeno = rmEmpty ex
-        fun duplikatiStran a=isolate a
+        fun duplikatiStran a=isolate a(*dobimo list nazaj*)
 
         fun poenostavi ex=
             case ex of
                 And es => 
                     let 
-                        val a=duplikatiStran(List.map poenostavi es)
+                        val a=duplikatiStran(List.map poenostavi es)(*ostanejo le razlicni*)
                     in
                         case a of
                             []=> True
                             |[el]=>el
-                            |_=> And a
+                            |_=> And a(*samo logika lmn shit*)
                     end
                 | Or es =>
                     let
@@ -243,7 +243,7 @@ fun rmVars ex =
                         case a of
                             []=> False
                             |[el]=>el
-                            |_=> Or a
+                            |_=> Or a(*lmn shit*)
                     end
                 | Eq es =>
                     let
@@ -260,7 +260,7 @@ fun rmVars ex =
                         val simplified_e2 = rmVars e2
                     in
                         if simplified_e1 = simplified_e2 then True  
-                        else Imp (simplified_e1, simplified_e2)
+                        else Imp (simplified_e1, simplified_e2)(*lmn shit*)
                     end
                 | Not e => Not (rmVars e) 
                 | _ => ex  
@@ -271,10 +271,10 @@ fun rmVars ex =
 
 fun simplify izraz =
     let
-        fun poenostavljeno sez=rmVars( pushNegations( rmConstants( sez))) 
+        fun poenostavljeno sez=rmVars( pushNegations( rmConstants( sez))) (*zaporedje delas dokler ne dela*)
         fun poenostavi el=
             let 
-               val pon_el=poenostavljeno el
+               val pon_el=poenostavljeno el(*smo poenostavili*)
             in
                 if pon_el = el then el (*dokler se kej spremeni deli*)
                 else poenostavi pon_el
