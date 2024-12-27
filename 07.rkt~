@@ -1,0 +1,56 @@
+#lang racket
+
+(define-syntax sml
+  (syntax-rules (:: hd tl null nil)
+    [(_ x :: xs) (cons x xs)]
+    [(_ hd xs) (car xs)]
+    [(_ tl xs) (cdr xs)]
+    [(_ null xs) (null? xs)]
+    [(_ nil) '()]))
+
+
+(define ones( cons 1 (lambda () ones)))
+
+;(car enke)                    ; prvi element
+;(car ((cdr enke)))            ; drugi element
+;(car ((cdr ((cdr enke)))))    ; tretji element
+
+(define naturals (letrec ([f (lambda (x) (cons x (lambda () (f (+ x 1)))))])
+                  (f 1)))
+
+;(car naturals)
+
+(define fibs
+  (letrec([f (lambda(x y)
+               (cons x (lambda() (f y (+ x y))))
+               )])
+(f 1 1)))
+
+;(car((cdr fibs)))
+;(car((cdr((cdr fibs)))))
+
+(define (first n tok)
+  (if (= 0 n)
+      '()
+      (cons (car tok)
+            (first (- n 1) ((cdr tok))))))
+
+(define (squares tok)
+  (cons (* (car tok) (car tok))
+        (lambda () (squares ((cdr tok))))))
+
+;koda od tu dol je bila sposojena
+
+(define (my-delay thunk)
+  (let ([result #f]
+        [callNum 0])
+    (lambda ()
+      (set! callNum (+ 1 callNum))
+      (if (= 1 (modulo callNum 5))
+          (begin
+            (set! result (thunk))
+            result)
+          result))))
+
+(define (my-force delayed)
+  (delayed))

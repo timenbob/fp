@@ -15,21 +15,19 @@
    n
    (+ (fib(- n 1)) (fib(- n 2)))))
 
-
 (define (reverse sez )
 (define (pomoc sez acc)
  (if (null? sez) acc
-     (pomoc (cdr sez) (cons (car sez) acc))
+     (pomoc (cdr sez) (append (car sez) acc))
   ))
 (pomoc sez null))
-
 
 
 (define (remove x sez)
   (define (pomoc sez acc x)
  (if (null? sez) (reverse acc)
-     (if (= (car sez) x)
-       (pomoc (cdr sez) acc x)
+     (if (= (cdr sez) x)
+       (pomoc (cdr sez) acc)
       (pomoc (cdr sez) (cons (car sez) acc) x)))
   )
 (pomoc sez null x))
@@ -46,7 +44,7 @@
 (define (filter f sez)
   (define (pomoc sez acc f)
  (if (null? sez) acc
-     (if (f (car sez))
+     (if (f (cdr sez))
         (pomoc (cdr sez) (cons (car sez) acc) f)
        (pomoc (cdr sez) acc f)
       ))
@@ -67,13 +65,6 @@
         (reverse acc)   
         (pomoc (+ current step) (cons current acc))))  
   (pomoc start null))
-
-(define (is-palindrome sez)
-  (equal? (reverse sez) sez))
-
-
-
-
 
 
 
