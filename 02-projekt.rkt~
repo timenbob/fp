@@ -1,4 +1,7 @@
 #lang racket
+
+; med seminarsko sem si pomagal s kolegi in umetno inteligenco
+
 (provide false true int .. empty exception
          trigger triggered handle
          if-then-else
@@ -8,224 +11,447 @@
          greater rev binary filtering folding mapping
          fri)
 
+;; FR Interpretor
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; def stvari
+(struct true ()#:transparent)
+(struct false ()#:transparent)
+(struct int (n)#:transparent)
+(struct .. (e1 e2)#:transparent)
+(struct empty ()#:transparent)
+(struct exception (e)#:transparent)
+(struct triggered (e)#:transparent)
+(struct trigger (e)#:transparent)
+(struct handle (e1 e2 e3)#:transparent)
+(struct if-then-else (cond e1 e2) #:transparent)
+(struct add (e1 e2) #:transparent )
+(struct mul (e1 e2) #:transparent )
 
-(struct true () #:transparent)
-(struct false () #:transparent)
-(struct int (n) #:transparent)
-(struct empty () #:transparent)
-(struct .. (e1 e2) #:transparent)
-(struct exception (exn) #:transparent)
-(struct triggered (e) #:transparent)
+(struct ?int (e1)#:transparent)
+(struct ?bool (e1)#:transparent)
+(struct ?.. (e1)#:transparent)
+(struct ?seq (e1)#:transparent)
+(struct ?empty (e1)#:transparent)
+(struct ?exception (e1)#:transparent)
+(struct ?leq (e1 e2)#:transparent)
+(struct ?= (e1 e2)#:transparent)
 
-(define (fri e okolje)
-  (cond
-    [(triggered? e) e] ; Če je že sprožena izjema
-    [(exception? e) (triggered e)] ; Če je izrazu tipa izjema
-    [(true? e) e] ; Če je logična vrednost (true)
-    [(false? e) e] ; Če je logična vrednost (false)
-    [(int? e) e] ; Če je celo število
-    [(empty? e) e] ; Če je prazno zaporedje
-    [(..? e) 
-     (let ([first (fri (..-e1 e) okolje)]
-           [rest (fri (..-e2 e) okolje)])
-       (if (triggered? first)
-           first
-           (if (triggered? rest)
-               rest
-               (.. first rest))))]
-    [else (error "Neznan izraz" e)]))
+(struct head (e1)#:transparent)
+(struct tail (e1)#:transparent)
+
+(struct ~ (e1)#:transparent)
+(struct ?all (e1)#:transparent)
+(struct ?any (e1)#:transparent)
+
+(struct vars (s e1 e2)#:transparent)
+(struct valof (s)#:transparent)
+
+(struct fun (name args body)#:transparent)        ;; Funkcija
+(struct proc (name body)#:transparent)            ;; Procedura
+(struct closure (env fun)#:transparent)           ;; Funkcijska ovojnica
+(struct call (e1 e2)#:transparent)
+
+;; FR Interpretor
+(define (fri ex env)
+  (cond; uporabil sem cond nasvet od kolega
+    [(triggered? ex) ex] ;If (triggered? e) evaluates to #t (true), the function returns e.
+    [(exception? ex) ex]
+    [(true? ex) ex]
+    [(false? ex) ex]
+    [(int? ex) ex]
+    [(empty? ex) ex]
+    
+    [(..? ex) 
+     (let ([v1 (fri (..-e1 ex) env)]
+           [v2 (fri (..-e2 ex) env)])
+       (cond
+         [(triggered? v1) v1]
+         [(triggered? v2) v2]
+         [else (.. v1 v2)]))]
+    
+    [(trigger? ex); ce je true naredi to
+     (let ([odg (fri (trigger-e ex) env)]); iz ex ka je trigger vn potegnemo element oznacen z e
+       (cond
+         [(and (not (exception? odg)) (not (triggered? odg))) (triggered (exception "trigger: wrong argument type"))] ;ce odg ni nic pol napak
+         [(triggered? odg) odg]
+         [else (triggered odg)] ;triggered odg
+         ))]
+    [(handle? ex) 
+     (let ([r1 (fri (handle-e1 ex) env)]  ; iz ex potegnemo vn el oznacen z e1
+           [r2 (fri (handle-e2 ex) env)]  
+           [r3 (fri (handle-e3 ex) env)]) 
+       (cond
+         [(triggered? r1) r1] ;ce je sprozena izjema samo pejdi 
+         [(not (exception? r1)) (triggered (exception "handle: wrong argument type"))] ;ce ni izjema pol napaka
+         [(triggered? r2) ;ce je sprozena izjema
+          (let ([exn2 (triggered-e r2)]) ;extractamo exception iz triggered
+            (if (equal? (exception-e exn2) (exception-e r1)) ;ali sta exceptiona iz r1 in r2 enaka
+                r3 ;vnremo evalviran r3
+                r2))] ;sicer r2
+         [else r2] ;ce r2 ne sprozi izjeme evalviran izraz r2
+         ))]
 
 
-; PROZENJE IZJEM
-(define (trigger e)
-  (let ([result (fri e '())]) ; Evalviramo izraz
-    (if (exception? result)
-        (triggered result)
-        (triggered (exception "trigger: wrong argument type")))))
-
-(define (triggered? x) (triggered? x))
-(define (exception? x) (struct? x exception))
-(define (true? x) (struct? x true))
-(define (false? x) (struct? x false))
-(define (int? x) (struct? x int))
-(define (empty? x) (struct? x empty))
-(define (..? x) (struct? x ..))
+    
+     [(if-then-else? ex)
+       (match (fri (if-then-else-cond ex) env);potegnemo vn cond
+      
+         [(false) (fri (if-then-else-e2 ex) env)] ;cond=false
+         [_ (fri (if-then-else-e1 ex) env)])]   ; sicer
 
 
+     
+    [(?int? ex) 
+     (let ([v (fri (?int-e1 ex) env)]);;?int-e: Extracts or evaluates the integer-related component of e.
+       (cond
+         [(and (int? v) (integer? (int-n v))) (true)]
+         [(triggered? v) v]
+         [else (false)]))]
+    
+    [(?bool? ex)
+     (let ([result (fri (?bool-e1 ex) env)])
+       (cond
+         [(or (equal? result (true)) (equal? result (false))) (true)]
+         [(triggered? result) result]
+         [else (false)]))]
+    
+    [(?..? ex)
+     (let ([v (fri (?..-e1 ex) env)])
+       (cond
+         [(empty? v) (false)]
+         [(..? v) (true)]
+         [else (false)]))]
+    
+    [(?seq? ex)
+     (let loop ([result (fri (?seq-e1 ex) env)])
+       (cond
+         [(empty? result) (true)]
+         [(..? result)
+          (let ([v1 (fri (..-e1 result) env)]
+                [v2 (fri (..-e2 result) env)])
+               (cond
+                 [(empty? v2) (true)]
+                 [(..? v2) (loop v2)]
+                 [else (false)]))]
+         [else (false)]))]
+    
+    [(?empty? ex)
+     (let ([result (fri (?empty-e1 ex) env)])
+       (cond
+         [(empty? result) (true)]
+         [(triggered? result) result]
+         [else (false)]))]
+    
+    [(?exception? ex)
+     (let ([result (fri (?exception-e1 ex) env)])
+       (if (struct? result 'exception)
+        (true)
+        (false)))]
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;
+    [(add? ex)
+     (match* ((fri (add-e1 ex) env) (fri (add-e2 ex) env)); match* pogleda kombinacije prvi pa drugi el el
+       [((int v1) (int v2)) (int (+ v1 v2))]
+       [((false) (false)) (false)]
+       [((true) (true)) (true)]
+       [((false) (true)) (true)]
+       [((true) (false)) (true)]
+       [((empty) (empty)) (empty)]
 
-; LOVLJENJE IZJEM
-(define (handle e1 e2 e3 environment)
-  (let ([val1 (fri e1 environment)]
-        [val2 (fri e2 environment)])
+       
+       [((triggered e1) _) (triggered e1)]
+       [(_ (triggered e2)) (triggered e2)]
+       
+       [((empty) (.. v2 v2-rest)) (.. v2 v2-rest)]
+       [((.. v1 v1-rest) (empty)) (.. v1 v1-rest)]
+       
+       [((.. v1 v1-rest) (.. v2 v2-rest))
+        (let ([tail (fri (add v1-rest (.. v2 v2-rest)) env)])
+          (cond
+            [(empty? v1-rest) (.. v1 (.. v2 v2-rest))]
+            [(triggered? tail) tail]
+            [else (.. v1 tail)]))]
+       [(_ _) (triggered (exception "add: wrong argument type"))])];; ce sta oba prazna
+
+    
+    [(mul? ex);; +- zgornja ideja dall sem da zgeneriria chat po kodi za add in naredil popravke
+     (match* ((fri (mul-e1 ex) env) (fri (mul-e2 ex) env))
+       [((int v1) (int v2)) (int (* v1 v2))]
+       [((true) (true)) (true)]
+       [((false) (false)) (false)]
+       [((false) (true)) (false)]
+       [((true) (false)) (false)]
+       [((triggered e1) _) (triggered e1)]
+       [(_ (triggered e2)) (triggered e2)]
+       [(_ _) (triggered (exception "mul: wrong argument type"))])]
+    
+    [(?leq? ex)
+     (match* ((fri (?leq-e1 ex) env) (fri (?leq-e2 ex) env))
+       [((int v1) (int v2)) (if (<= v1 v2) (true) (false))]
+       [((true) (false)) (false)]
+       [((false) (true)) (true)]
+       [((true) (true)) (true)]
+       [((false) (false)) (true)]
+       [((empty) (empty)) (true)]
+       [((.. e1-rest e1-next) (empty)) (false)]
+       [((empty) (.. e2-rest e2-next)) (true)]
+       [((.. e1-rest e1-next) (.. e2-rest e2-next)) (if (<= (length e1-next) (length e2-next)) (true) (false))]
+       [((triggered e1) _) (triggered e1)]
+       [(_ (triggered e2)) (triggered e2)]
+       [(_ _) (triggered (exception "?leq: wrong argument type"))])]
+    
+    [(?=? ex)
+     (match* ((fri (?=-e1 ex) env) (fri (?=-e2 ex) env))
+       [((int v1) (int v2)) (if (= v1 v2) (true) (false))]
+       [((true) (true)) (true)]
+       [((false) (false)) (false)]
+       [((true) (false)) (false)]
+       [((false) (true)) (false)]
+       [((.. e1 n1) (.. e2 n2)) (if (and (equal? e1 e2) (equal? n1 n2)) (true) (false))]
+       [(_ _) (false)])]
+
+    ;rep glava part
+    
+    [(head? ex)
+     (let ([v (fri (head-e1 ex) env)])
+       (cond
+         [(empty? v) (triggered (exception "head: empty sequence"))]
+         [(not (..? v)) (triggered (exception "head: wrong argument type"))]
+         [else (..-e1 v)]))]; vrni glavo
+    
+    [(tail? ex)
+     (let ([v (fri (tail-e1 ex) env)])
+       (cond
+         [(empty? v) (triggered (exception "tail: empty sequence"))]
+         [(not (..? v)) (triggered (exception "tail: wrong argument type"))]
+         [else (..-e2 v)]))]
+
+    
+    [(~? ex)
+     (let ([v (fri (~-e1 ex) env)])
+       (cond
+         [(true? v) (false)]
+         [(false? v) (true)]
+         [(int? v) (int (- (int-n v)))]
+         [else (triggered (exception "~: wrong argument type"))]))]
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    
+    [(?all? ex)
+     (match* ((fri (?all-e1 ex) env))
+                     [((empty)) (true)]
+                     [((.. v1 v1-rest))
+                      (let* ([vv1 (fri v1 env)]  
+                             [vv1-rest (fri (?all v1-rest) env)])  
+                        (cond
+                          [(triggered? vv1) vv1]  
+                          [(triggered? vv1-rest) vv1-rest]  
+                          [(false? vv1) (false)] 
+                          [(false? vv1-rest) (false)]
+                          [(and (true? vv1) (true? vv1-rest)) (true)]
+                          [(and (empty? vv1) (empty? vv1-rest)) (true)]
+                          [(and (true? vv1) (empty? vv1-rest)) (true)]
+                          [(empty? v1) vv1-rest]
+                          [else vv1-rest]))]
+                     [(_) (triggered (exception "?all: wrong argument type"))])]
+    
+    [(?any? ex)
+     (match* ((fri (?any-e1 ex) env))
+                     [((empty)) (false)]; prazen naredi to
+       
+                     [((.. v1 v1-rest)); ce uspes neki vn potegnt je bistu seznam
+                      (let* ([vv1 (fri v1 env)]  
+                             [vv1-rest (fri (?any v1-rest) env)])  
+                        (cond
+                          [(triggered? vv1) vv1]  
+                          [(triggered? vv1-rest) vv1-rest]  
+                          [(true? vv1) (true)] 
+                          [(true? vv1-rest) (true)]
+                          [(and (empty? vv1) (empty? vv1-rest)) (false)] 
+                          [else vv1-rest]))]
+       
+                     [(_) (triggered (exception "?any: wrong argument type"))])];ni ga naredi to
+    
+     [(vars? ex)
+      (let* ([s (vars-s ex)];;;;Vsaka spremenljivka, definirana znotraj let*, ima dostop do prejšnjih definicij..po vrsti seta dol let vse naenkrat
+             [v1 (fri (vars-e1 ex) env)]
+             [e2 (vars-e2 ex)]
+             [novo;; kom zgori rabmo ker tuki mas s in v1
+              ;; ideja od kolegov
+              (cond
+                [(and (list? s) (list? v1))
+                 (if (not (= (length s) (length v1)))
+                     (triggered (exception "vars: mismatched lists"))
+                     (let loop ([imena s] [seen '()])
+                       (cond
+                         [(null? imena) (map cons s v1)]
+                         [(member (car imena) seen) (triggered (exception "vars: duplicate identifier"))]
+                         [else (loop (cdr imena) (cons (car imena) seen))])))]
+                [(string? s) (list (cons s v1))]
+                [else (triggered (exception "vars: invalid arguments"))])])
+        (cond
+          [(triggered? v1) v1]  ; If `v1` is triggered, return it immediately
+          [(triggered? novo) novo]  ; If `novo` is triggered, return it immediately
+          [else (let ([extended-env (append novo env)])  ; Extend the environment
+             (fri e2 extended-env))]))]
+     
+     [(valof? ex)                            ; Če `ex` ustreza primeru `valof?`
+      (let ([v (valof-s ex)])               ; Izluščimo ime spremenljivke z `valof-s`
+        (let loop ([env1 env])              ; Definiramo rekurzivno funkcijo `loop` za iskanje v `env`
+          (cond
+            [(null? env1)                   ; Če je `env1` prazen, spremenljivke ni v okolju
+             (triggered (exception "valof: undefined variable"))]
+            [(equal? v (caar env1))         ; Če je ime spremenljivke enako prvemu elementu trenutnega para
+             (cdar env1)]                   ; Vrni vrednost, povezano s tem imenom
+            [else (loop (cdr env1))])))]    ; Sicer nadaljuj z iskanjem v preostalem okolju
+
+     
+     [(list? ex)
+      (map (lambda (x) (fri x env)) ex)]
+
+     
+     ;;;;;;;;;;;;;;;;;;;;
+
+     
+     [(fun? ex)
+      (let* ([name (fun-name ex)]
+             [args1 (fun-args ex)]
+             [body (fun-body ex)]);;poberemo vn stvari
+        (if (list? args1)
+           (if (equal? (length args1) (length (remove-duplicates args1)))
+               (closure env fun)
+               (triggered (exception "fun: duplicate argument identifier")))
+           (triggered (exception "fun: arguments must be a list"))))]
+     
+     [(proc? ex) ex]
+     [(closure? ex) ex]
+     ;;;pomagam ai 
+     [(call? ex)
+      (let* ([func (fri (call-e1 ex) env)] ;funkcijo znotraj preoblikujemmo v ovojnico
+             [arg-e (call-e2 ex)]
+             [args (if (list? arg-e)
+                       (map (lambda (arg) (fri arg env)) arg-e)
+                       (list (fri arg-e env)))])
+        (cond
+          [(triggered? func) func]
+          [(closure? func)
+            (let* ([closure-env (closure-env func)] ;get the closure of the function 
+                   [fun-def (closure-fun func)] ;get the finction definition from closure
+                   [fun-args (fun-args fun-def)] ;get the function arguments
+                   [num-args (length args)] ;the number of arguments passed
+                   [num-fun-args (length fun-args)] ;the number of function parameters
+                   [arg-env (if (= num-args num-fun-args)
+                                (append (map cons fun-args args) (cons (cons (fun-name fun-def) func) closure-env))
+                                (triggered (exception "call: arity mismatch")))])
+                (fri (fun-body fun-def) arg-env))]
+          [(proc? func)
+           (fri (proc-body func) (cons (cons (proc-name func) func) env))]
+          [else (triggered (exception "call: wrong argument type"))]))]
+     
+    [else (error "Unknown expression" ex)]))
+
+; MAKRI
+(define (greater e1 e2)
+  (?leq e2 e1)) ; preveri po leq ka ga def
+
+(define (rev e);obrnemo
+  (let loop ([seq (fri e null)] [new (empty)])
+    (if (?seq e)
+        (cond
+          [(empty? seq) new]
+          [(..? seq)
+           (let ([head (..-e1 seq)]
+                 [tail (..-e2 seq)])
+             (loop tail (.. head new)))])
+        (triggered (exception "rev: wrong argument type")))))
+
+(define (binary e1)
+  ;; algoritem naredu ai
+  (let ([v (fri e1 null)]); null ker ni enviermenta
     (cond
-      ;; Rule 1: e1 does not evaluate to a triggered exception
-      [(not (triggered? val1))
-       (trigger (exception "handle: wrong argument type"))]
+      [(and (int? v) (> (int-n v) 0)) ;more bit int veci od 0
+       (let loop ([n (int-n v)] [result (empty)])
+         (if (= n 0)
+             result 
+             (loop (quotient n 2) (.. (int (remainder n 2)) result))))]
+      [(triggered? v) v]
+      [else (triggered (exception "binary: argument must be a positive integer"))])))
 
-      ;; Rule 2: e2 evaluates to a triggered exception that matches e1
-      [(triggered? val2)
-       (if (exception-matches? (get-exception val1) (get-exception val2))
-           (fri e3 environment)
-           val2)]
+(define (mapping f seq); f funkcija seq gg
+  (let loop ([eval-f (fri f null)];fun
+             [eval-seq (fri seq null)];stari
+             [new-seq (empty)]);novi
+    (if (?seq eval-seq);preverimo ali je zaporedje
+        (cond
+          [(triggered? eval-seq) eval-seq]
+          
+          [(empty? eval-seq) (rev new-seq)];prazen ga ustvaris/gradis
+          
+          [(..? eval-seq)
+           (let* ([head (fri (..-e1 eval-seq) null)]
+                  [tail (fri (..-e2 eval-seq) null)]
+                  [result (fri (call f (list head)) null)]);; list head naredi list ka vsebuje head da lahko na tem klicemo f 
+             (if (triggered? result)
+                 result
+                 (loop f tail (.. result new-seq))))];;rekurzivni klic
+          
+          [else (triggered (exception "mapping: wrong argument type"))]);else
+        
+        (triggered (exception "mapping: wrong argument type")))));else
 
-      ;; Rule 3: No exceptions
-      [else val2])))
 
+(define (filtering f seq)
+  (let loop ([eval-f (fri f null)]
+             [eval-seq (fri seq null)]
+             [new-seq (empty)]);isto ko zgori
+    (if (?seq eval-seq)
+       (cond
+          [(triggered? eval-seq) eval-seq]
+          
+          [(empty? eval-seq) (rev new-seq)]
+          
+          [(..? eval-seq)
+           (let* ([head (fri (..-e1 eval-seq) null)]
+                  [tail (fri (..-e2 eval-seq) null)]
+                  [result (fri (call f (list head)) null)])
+             (cond
+               [(triggered? result) result]
+               
+               [(true? result) (loop f tail (.. head new-seq))]
+               
+               [else (loop f tail new-seq)]))];;rekurzija
+          
+          [else (triggered (exception "filtering: wrong argument type"))])
+       
+       (triggered (exception "filtering: wrong argument type")))))
 
-; VEJITVE
-(define (if-then-else condition e1 e2 environment)
-  (let ([cond-result (fri condition environment)])
-    (if (equal? cond-result (false))
-        (fri e2 environment) ; Evaluate and return `e2` if condition is `false`
-        (fri e1 environment)))) ; Otherwise, evaluate and return `e1`
-
-
-; PREVERJANJE TIPOV
-(define (?int e environment)
-  (let ([result (fri e environment)])
-    (if (struct? result 'int)
-        (true)
-        (false))))
-
-(define (?bool e environment)
-  (let ([result (fri e environment)])
-    (if (or (equal? result (true)) (equal? result (false)))
-        (true)
-        (false))))
-
-(define (?.. e environment)
-  (let ([result (fri e environment)])
-    (if (or (struct? result '..) (equal? result (empty)))
-        (true)
-        (false))))
-
-(define (?seq e environment)
-  (let ([result (fri e environment)])
-    (if (and (struct? result '..)
-             (equal? (fri (..-e2 result) environment) (empty)))
-        (true)
-        (false))))
-
-(define (?empty e environment)
-  (let ([result (fri e environment)])
-    (if (equal? result (empty))
-        (true)
-        (false))))
-
-(define (?exception e environment)
-  (let ([result (fri e environment)])
-    (if (struct? result 'exception)
-        (true)
-        (false))))
-
-; SESTEVANJE
-(define (add e1 e2)
-  (match* ((fri e1) (fri e2))
-    ;; Case 1: Both are integers
-    [((int i1) (int i2))
-     (int (+ i1 i2))]
-
-    ;; Case 2: Both are boolean values
-    [((true) (true)) (true)]
-    [((true) (false)) (true)]
-    [((false) (true)) (true)]
-    [((false) (false)) (false)]
-   
-
-    ;; Case 3: Both are sequences
-    [((..? e1-rest) (..? e2-rest))
-     (.. e1-rest e2-rest)]
-
-    ;; Case 4: Default case (error handling)
-    [_ 
-     (triggered (exception "add: wrong argument type"))]))
-
-; MNOZENJE
-(define (mul e1 e2)
-  (match* ((fri e1) (fri e2))
-    ;; Case 1: Both are booleans (conjunction)
-    [((true) (true)) (true)]
-    [((true) (false)) (false)]
-    [((false) (true)) (false)]
-    [((false) (false)) (false)]
+(define (folding f init seq)
+  (let loop ([eval-f (fri f null)]
+             [eval-init (fri init null)]
+             [eval-seq (fri seq null)]);;samo eval na vse
     
-    ;; Case 2: Both are integers (multiply)
-    [((int i1) (int i2)) (int (* i1 i2))]
+    (if (?seq eval-seq)
+        (cond
+          [(triggered? eval-init) eval-init]
+          
+          [(triggered? eval-seq) eval-seq]
+          
+          [(empty? eval-seq) eval-init]
+          
+          [(..? eval-seq) 
+           (let* ([head (fri (..-e1 eval-seq) null)]        
+                  [tail (fri (..-e2 eval-seq) null)]       
+                  [result (fri (call f (list head eval-init)) null)]) 
+             (if (triggered? result) 
+                 result                        
+                 (loop f result tail)))]
+          
+          [else (triggered (exception "folding: wrong argument type"))])
+        
+        (triggered (exception "folding: wrong argument type")))))
+
+
+
     
-    ;; Default: Trigger exception for wrong argument types
-    [_ (triggered (exception "mul: wrong argument type"))]))
-
-
-; PRIMERJAVA
-(define (?leq e1 e2)
-  (match* ((fri e1) (fri e2))
-    ;; Case 1: Both are booleans (implication)
-    [((true) (true)) (true)]
-    [((true) (false)) (false)]
-    [((false) (true)) (true)]
-    [((false) (false)) (true)]
-    
-    ;; Case 2: Both are integers (less than or equal)
-    [((int i1) (int i2)) (true? (<= i1 i2))]
-    
-    ;; Case 3: Both are sequences (compare length)
-    [((.. e1 i1) (.. e2 i2)) (true? (<= (length i1) (length i2)))]
-    
-    ;; Default: Trigger exception for wrong argument types
-    [_ (triggered (exception "?leq: wrong argument type"))]))
-
-;ENAKOST
-(define (?= e1 e2)
-  (match* ((fri e1) (fri e2))
-    ;; Case 1: Both are booleans (check equality)
-    [((true) (true)) (true)]
-    [((false) (false)) (true)]
-    [((true) (false)) (false)]
-    [((false) (true)) (false)]
-    
-    ;; Case 2: Both are integers (check equality)
-    [((int i1) (int i2)) (if (= i1 i2) (true) (false))]
-    
-    ;; Case 3: Both are sequences (check equality by comparing elements)
-    [((.. e1 i1) (.. e2 i2)) (true? (equal? i1 i2))]
-    
-    ;; Default: Trigger exception for wrong argument types
-    [_ (triggered (exception "?=: wrong argument type"))]))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

@@ -1,0 +1,6 @@
+#lang racket
+
+(define (power x y) (
+    if (= y 1)
+       x
+       (* x power x (- y 1))

@@ -61,3 +61,41 @@
     [(= k 1) 1]      
     [else (+ (partitions k (- n k))
              (partitions (sub1 k) (sub1 n)))]))
+
+
+
+
+
+
+
+
+
+(*curry
+def curry3(func):
+    def curried(*args):
+        if len(args) == 3:
+            print(f"Curryied parametrov: {len(args)}")
+            return func(*args)
+        elif len(args) == 2:
+            print(f"Curryied parametrov: {len(args)}")
+            return lambda c: func(args[0], args[1], c)
+        elif len(args) == 1:
+            print(f"Curryied parametrov: {len(args)}")
+            return lambda b: lambda c: func(args[0], b, c)
+        else:
+            raise ValueError("Napačno število argumentov")
+    return curried
+
+@curry3
+def f(a, b, c):
+    return a + b + c
+
+# Primeri uporabe
+print(f(1, 2, 3))        # Izpiše: Curryied parametrov: 3 \n 6
+print(f(1)(2, 3))        # Izpiše: Curryied parametrov: 1 \n Curryied parametrov: 2 \n 6
+print(f(1, 2)(3))        # Izpiše: Curryied parametrov: 2 \n Curryied parametrov: 1 \n 6
+print(f(1)(2)(3))        # Izpiše: Curryied parametrov: 1 \n Curryied parametrov: 1 \n Curryied parametrov: 1 \n 6
+
+
+
+*)

@@ -1,5 +1,5 @@
 #lang racket
-(require "022-projekt.rkt")
+(require "02-project.rkt")
 
 (require rackunit)
 (require rackunit/text-ui)
